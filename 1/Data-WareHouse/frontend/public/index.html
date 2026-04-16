@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Warehouse - Hệ thống Quản trị Kho</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+        .page { display: none; }
+        .page.active { display: block; }
+        .sidebar-link.active { background-color: #1e40af; color: white; }
+        .toast {
+            animation: slideIn 0.3s ease-out, fadeOut 0.5s ease-in 4.5s forwards;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+        .loading { 
+            display: inline-block; width: 20px; height: 20px; 
+            border: 3px solid rgba(255,255,255,.3); border-radius: 50%; 
+            border-top-color: #fff; animation: spin 0.8s ease-in-out infinite; 
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .modal-overlay {
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(2px);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+    <!-- ==================== LOGIN PAGE ==================== -->
+    <div id="loginPage" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+            <div class="text-center mb-8">
+                <div class="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-xl mb-4">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                    </svg>
+                </div>
+                <h1 class="text-2xl font-bold text-gray-800">Smart Warehouse</h1>
+                <p class="text-gray-500 mt-1">Hệ thống Quản trị Kho thông minh</p>
+            </div>
+            <form id="loginForm" class="space-y-5">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Tài khoản</label>
+                    <input type="text" id="loginUsername" placeholder="Nhập tên đăng nhập" required
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Mật khẩu</label>
+                    <input type="password" id="loginPassword" placeholder="Nhập mật khẩu" required
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition">
+                </div>
+                <div id="loginError" class="text-red-500 text-sm hidden"></div>
+                <button type="submit" id="loginBtn"
+                    class="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition duration-200 flex items-center justify-center gap-2">
+                    Đăng nhập
+                </button>
+            </form>
+            <p class="text-center text-xs text-gray-400 mt-6">v1.0 &bull; Data Warehouse Management System</p>
+        </div>
+    </div>
+
+    <!-- ==================== MAIN APP ==================== -->
+    <div id="mainApp" class="hidden min-h-screen flex">
+        
+        <!-- SIDEBAR -->
+        <aside id="sidebar" class="w-64 bg-gray-900 text-white min-h-screen flex flex-col fixed left-0 top-0 z-30">
+            <div class="p-5 border-b border-gray-700">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 class="font-bold text-sm">Smart Warehouse</h2>
+                        <p class="text-xs text-gray-400">Quản trị Kho</p>
+                    </div>
+                </div>
+            </div>
+
+            <nav class="flex-1 p-3 space-y-1">
+                <a href="#" onclick="navigateTo('dashboard')" data-page="dashboard"
+                    class="sidebar-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm text-gray-300 hover:bg-gray-800 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4"/></svg>
+                    Tổng quan
+                </a>
+                <a href="#" onclick="navigateTo('products')" data-page="products"
+                    class="sidebar-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm text-gray-300 hover:bg-gray-800 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                    Sản phẩm
+                </a>
+                <a href="#" onclick="navigateTo('suppliers')" data-page="suppliers"
+                    class="sidebar-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm text-gray-300 hover:bg-gray-800 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    Nhà cung cấp
+                </a>
+                <a href="#" onclick="navigateTo('inbound')" data-page="inbound"
+                    class="sidebar-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm text-gray-300 hover:bg-gray-800 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    Nhập kho
+                </a>
+                <a href="#" onclick="navigateTo('outbound')" data-page="outbound"
+                    class="sidebar-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm text-gray-300 hover:bg-gray-800 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                    Xuất kho
+                </a>
+                <a href="#" onclick="navigateTo('audit')" data-page="audit"
+                    class="sidebar-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm text-gray-300 hover:bg-gray-800 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                    Kiểm kê
+                </a>
+                <a href="#" onclick="navigateTo('analytics')" data-page="analytics"
+                    class="sidebar-link flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm text-gray-300 hover:bg-gray-800 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                    Phân tích
+                </a>
+            </nav>
+
+            <!-- User Info -->
+            <div class="p-4 border-t border-gray-700">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 bg-blue-500 rounded-full flex items-center justify-center text-sm font-bold" id="userAvatar">U</div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-medium truncate" id="userName">User</p>
+                        <p class="text-xs text-gray-400" id="userRole">Role</p>
+                    </div>
+                    <button onclick="logout()" title="Đăng xuất" class="text-gray-400 hover:text-red-400 transition">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <main class="flex-1 ml-64">
+            <!-- Top Bar -->
+            <header class="bg-white shadow-sm border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-20">
+                <h1 class="text-xl font-semibold text-gray-800" id="pageTitle">Tổng quan</h1>
+                <div class="flex items-center gap-4">
+                    <div id="connectionStatus" class="flex items-center gap-2 text-sm">
+                        <span class="w-2 h-2 rounded-full bg-gray-400"></span>
+                        <span class="text-gray-500">Đang kết nối...</span>
+                    </div>
+                </div>
+            </header>
+
+            <div class="p-6">
+                <!-- ===== DASHBOARD PAGE ===== -->
+                <div id="page-dashboard" class="page active">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <div class="bg-white rounded-xl shadow-sm border p-6">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm text-gray-500">Tổng SKU</p>
+                                    <p class="text-3xl font-bold text-gray-800 mt-1" id="statTotalSKU">--</p>
+                                </div>
+                                <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-sm border p-6">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm text-gray-500">Sắp hết hàng</p>
+                                    <p class="text-3xl font-bold text-red-600 mt-1" id="statLowStock">--</p>
+                                </div>
+                                <div class="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
+                                    <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-sm border p-6">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm text-gray-500">Tổng tồn kho</p>
+                                    <p class="text-3xl font-bold text-green-600 mt-1" id="statTotalUnits">--</p>
+                                </div>
+                                <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Real-time Alerts -->
+                    <div class="bg-white rounded-xl shadow-sm border p-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                            <svg class="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                            Cảnh báo thời gian thực
+                        </h3>
+                        <div id="alertsContainer" class="space-y-3 max-h-80 overflow-y-auto">
+                            <div class="text-gray-400 text-sm text-center py-8">
+                                <svg class="w-12 h-12 mx-auto mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg>
+                                Chưa có cảnh báo nào. Hệ thống đang theo dõi...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===== PRODUCTS PAGE ===== -->
+                <div id="page-products" class="page">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Search Product -->
+                        <div class="bg-white rounded-xl shadow-sm border p-6">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4">Tra cứu sản phẩm</h3>
+                            <div class="flex gap-3 mb-4">
+                                <input type="text" id="barcodeInput" placeholder="Nhập mã vạch (barcode)..."
+                                    class="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                                <button onclick="searchProduct()" class="bg-blue-600 text-white px-5 py-2.5 rounded-lg hover:bg-blue-700 transition font-medium">
+                                    Tìm kiếm
+                                </button>
+                            </div>
+                            <div id="productResult" class="hidden">
+                                <div class="bg-gray-50 rounded-lg p-4">
+                                    <table class="w-full text-sm">
+                                        <tbody id="productDetailTable"></tbody>
+                                    </table>
+                                </div>
+                                <div class="flex gap-2 mt-4" id="productActions"></div>
+                            </div>
+                            <div id="productNotFound" class="hidden text-red-500 text-sm mt-2"></div>
+                        </div>
+
+                        <!-- Add Product -->
+                        <div class="bg-white rounded-xl shadow-sm border p-6" id="addProductSection">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4">Thêm sản phẩm mới</h3>
+                            <form id="addProductForm" class="space-y-3">
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-600 mb-1">SKU</label>
+                                        <input type="text" name="sku" required class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-600 mb-1">Barcode</label>
+                                        <input type="text" name="barcode" required class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">Tên sản phẩm</label>
+                                    <input type="text" name="name" required class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                                </div>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-600 mb-1">Danh mục (ID)</label>
+                                        <input type="number" name="categoryId" required class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-600 mb-1">NCC (ID)</label>
+                                        <input type="number" name="supplierId" required class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-3 gap-3">
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-600 mb-1">ROP</label>
+                                        <input type="number" step="0.01" name="rop" required class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-600 mb-1">Safety Stock</label>
+                                        <input type="number" step="0.01" name="safetyStock" required class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-600 mb-1">Đơn vị</label>
+                                        <input type="text" name="unit" required class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Thùng, Hộp...">
+                                    </div>
+                                </div>
+                                <button type="submit" class="w-full bg-green-600 text-white py-2.5 rounded-lg hover:bg-green-700 transition font-medium text-sm">
+                                    Thêm sản phẩm
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===== SUPPLIERS PAGE ===== -->
+                <div id="page-suppliers" class="page">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border p-6">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-lg font-semibold text-gray-800">Danh sách Nhà cung cấp</h3>
+                                <button onclick="loadSuppliers()" class="text-blue-600 hover:text-blue-800 text-sm font-medium">Tải lại</button>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-sm">
+                                    <thead>
+                                        <tr class="bg-gray-50 text-left">
+                                            <th class="px-4 py-3 font-medium text-gray-600">ID</th>
+                                            <th class="px-4 py-3 font-medium text-gray-600">Tên NCC</th>
+                                            <th class="px-4 py-3 font-medium text-gray-600">Lead Time (ngày)</th>
+                                            <th class="px-4 py-3 font-medium text-gray-600">Liên hệ</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="supplierTable" class="divide-y divide-gray-100">
+                                        <tr><td colspan="4" class="px-4 py-8 text-center text-gray-400">Đang tải dữ liệu...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-xl shadow-sm border p-6">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4">Thêm NCC mới</h3>
+                            <form id="addSupplierForm" class="space-y-3">
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">Tên NCC</label>
+                                    <input type="text" name="name" required class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">Lead Time (ngày)</label>
+                                    <input type="number" name="leadTime" required class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-600 mb-1">Thông tin liên hệ</label>
+                                    <input type="text" name="contactInfo" required class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="SĐT hoặc Email">
+                                </div>
+                                <button type="submit" class="w-full bg-green-600 text-white py-2.5 rounded-lg hover:bg-green-700 transition font-medium text-sm">
+                                    Thêm NCC
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===== INBOUND PAGE ===== -->
+                <div id="page-inbound" class="page">
+                    <div class="max-w-2xl mx-auto">
+                        <div class="bg-white rounded-xl shadow-sm border p-6">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-2">Nhập kho (Inbound)</h3>
+                            <p class="text-sm text-gray-500 mb-6">Quét mã vạch sản phẩm và nhập thông tin vị trí lưu kho</p>
+                            <form id="inboundForm" class="space-y-4">
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Mã vạch (Barcode)</label>
+                                        <input type="text" name="barcode" required
+                                            class="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Vị trí ô kệ (Bin)</label>
+                                        <input type="text" name="binCode" required placeholder="VD: A-01-01"
+                                            class="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-3 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Số lượng</label>
+                                        <input type="number" name="quantity" min="1" required
+                                            class="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Số lô (Batch)</label>
+                                        <input type="text" name="batchNo" placeholder="LOT-001"
+                                            class="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Ngày hết hạn</label>
+                                        <input type="date" name="expiryDate"
+                                            class="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                                    </div>
+                                </div>
+                                <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition font-semibold flex items-center justify-center gap-2">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                                    Xác nhận Nhập kho
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- Transfer Section -->
+                        <div class="bg-white rounded-xl shadow-sm border p-6 mt-6">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-2">Điều chuyển nội bộ</h3>
+                            <p class="text-sm text-gray-500 mb-6">Di chuyển hàng giữa các vị trí trong kho</p>
+                            <form id="transferForm" class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">SKU sản phẩm</label>
+                                    <input type="text" name="sku" required class="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                                </div>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Từ vị trí</label>
+                                        <input type="text" name="sourceBin" required placeholder="A-01-01"
+                                            class="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Đến vị trí</label>
+                                        <input type="text" name="destBin" required placeholder="B-02-03"
+                                            class="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Số lượng</label>
+                                    <input type="number" name="quantity" min="1" required class="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                                </div>
+                                <button type="submit" class="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 transition font-semibold flex items-center justify-center gap-2">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                                    Xác nhận Điều chuyển
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===== OUTBOUND PAGE ===== -->
+                <div id="page-outbound" class="page">
+                    <div class="max-w-3xl mx-auto">
+                        <div class="bg-white rounded-xl shadow-sm border p-6 mb-6">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-2">Gợi ý nhặt hàng (FEFO)</h3>
+                            <p class="text-sm text-gray-500 mb-4">Hệ thống sẽ gợi ý vị trí nhặt hàng theo thứ tự hết hạn trước xuất trước</p>
+                            <div class="flex gap-3 mb-4">
+                                <input type="text" id="outboundSkuInput" placeholder="Nhập mã SKU..."
+                                    class="flex-1 px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                                <button onclick="getPickingSuggestion()" class="bg-blue-600 text-white px-5 py-2.5 rounded-lg hover:bg-blue-700 transition font-medium">
+                                    Tìm vị trí
+                                </button>
+                            </div>
+                            <div id="pickingResult" class="hidden">
+                                <table class="w-full text-sm">
+                                    <thead>
+                                        <tr class="bg-gray-50 text-left">
+                                            <th class="px-4 py-3 font-medium text-gray-600">SKU</th>
+                                            <th class="px-4 py-3 font-medium text-gray-600">Tên SP</th>
+                                            <th class="px-4 py-3 font-medium text-gray-600">Vị trí</th>
+                                            <th class="px-4 py-3 font-medium text-gray-600">Tồn</th>
+                                            <th class="px-4 py-3 font-medium text-gray-600">Lô</th>
+                                            <th class="px-4 py-3 font-medium text-gray-600">Hết hạn</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="pickingTable" class="divide-y divide-gray-100"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-xl shadow-sm border p-6">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4">Xác nhận Xuất kho</h3>
+                            <form id="outboundForm" class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">SKU</label>
+                                    <input type="text" name="sku" required class="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                                </div>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Vị trí (Bin Code)</label>
+                                        <input type="text" name="binCode" required class="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Số lượng</label>
+                                        <input type="number" name="quantity" min="1" required class="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                                    </div>
+                                </div>
+                                <button type="submit" class="w-full bg-orange-600 text-white py-3 rounded-lg hover:bg-orange-700 transition font-semibold flex items-center justify-center gap-2">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                                    Xác nhận Xuất kho
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===== AUDIT PAGE ===== -->
+                <div id="page-audit" class="page">
+                    <div class="max-w-3xl mx-auto">
+                        <div class="bg-white rounded-xl shadow-sm border p-6 mb-6">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-2">Kiểm kê theo vị trí</h3>
+                            <p class="text-sm text-gray-500 mb-4">Tra cứu tồn kho sổ sách tại một vị trí ô kệ để đối chiếu</p>
+                            <div class="flex gap-3 mb-4">
+                                <input type="text" id="auditBinInput" placeholder="Nhập mã ô kệ (VD: A-01-01)"
+                                    class="flex-1 px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                                <button onclick="getBinInventory()" class="bg-blue-600 text-white px-5 py-2.5 rounded-lg hover:bg-blue-700 transition font-medium">
+                                    Tra cứu
+                                </button>
+                            </div>
+                            <div id="auditResult" class="hidden">
+                                <table class="w-full text-sm">
+                                    <thead>
+                                        <tr class="bg-gray-50 text-left">
+                                            <th class="px-4 py-3 font-medium text-gray-600">SKU</th>
+                                            <th class="px-4 py-3 font-medium text-gray-600">Tên SP</th>
+                                            <th class="px-4 py-3 font-medium text-gray-600">Tồn sổ sách</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="auditTable" class="divide-y divide-gray-100"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-xl shadow-sm border p-6" id="adjustSection">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4">Điều chỉnh chênh lệch</h3>
+                            <form id="adjustForm" class="space-y-4">
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Mã ô kệ</label>
+                                        <input type="text" name="binCode" required class="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">SKU</label>
+                                        <input type="text" name="sku" required class="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">SL theo sổ sách</label>
+                                        <input type="number" name="expectedQty" required class="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">SL thực tế</label>
+                                        <input type="number" name="actualQty" required class="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Lý do</label>
+                                    <input type="text" name="reason" placeholder="Kiểm kê định kỳ, hư hỏng..."
+                                        class="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                                </div>
+                                <button type="submit" class="w-full bg-yellow-600 text-white py-3 rounded-lg hover:bg-yellow-700 transition font-semibold">
+                                    Phê duyệt Điều chỉnh
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===== ANALYTICS PAGE ===== -->
+                <div id="page-analytics" class="page">
+                    <div class="max-w-3xl mx-auto">
+                        <div class="bg-white rounded-xl shadow-sm border p-6">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-2">Dự báo nhu cầu (Exponential Smoothing)</h3>
+                            <p class="text-sm text-gray-500 mb-6">Chạy thuật toán dự báo dựa trên lịch sử xuất kho 6 tháng gần nhất</p>
+                            <div class="flex gap-3 mb-6">
+                                <input type="text" id="forecastSkuInput" placeholder="Nhập mã SKU..."
+                                    class="flex-1 px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                                <div class="flex items-center gap-2">
+                                    <label class="text-sm text-gray-600">Alpha:</label>
+                                    <input type="number" id="forecastAlpha" value="0.3" step="0.1" min="0.1" max="0.9"
+                                        class="w-20 px-3 py-2.5 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                                </div>
+                                <button onclick="runForecast()" class="bg-purple-600 text-white px-5 py-2.5 rounded-lg hover:bg-purple-700 transition font-medium">
+                                    Chạy dự báo
+                                </button>
+                            </div>
+                            <div id="forecastResult" class="hidden space-y-4">
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div class="bg-purple-50 rounded-lg p-4 text-center">
+                                        <p class="text-sm text-purple-600 font-medium">Nhu cầu dự báo tháng tới</p>
+                                        <p class="text-3xl font-bold text-purple-800 mt-2" id="forecastDemand">--</p>
+                                        <p class="text-xs text-purple-500 mt-1">đơn vị</p>
+                                    </div>
+                                    <div class="bg-blue-50 rounded-lg p-4 text-center">
+                                        <p class="text-sm text-blue-600 font-medium">Điểm đặt hàng lại (ROP)</p>
+                                        <p class="text-3xl font-bold text-blue-800 mt-2" id="forecastROP">--</p>
+                                        <p class="text-xs text-blue-500 mt-1">đơn vị</p>
+                                    </div>
+                                </div>
+                                <div class="bg-gray-50 rounded-lg p-4">
+                                    <p class="text-sm font-medium text-gray-700 mb-2">Lịch sử xuất kho (6 tháng)</p>
+                                    <div id="forecastHistory" class="flex items-end gap-2 h-32"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="fixed top-4 right-4 z-50 space-y-2"></div>
+
+    <!-- ==================== JAVASCRIPT ==================== -->
+    <script>
+    // ============ GLOBAL STATE ============
+    const API_BASE = '/api/v1';
+    let authToken = localStorage.getItem('wh_token');
+    let currentUser = JSON.parse(localStorage.getItem('wh_user') || 'null');
+    let socket = null;
+
+    // ============ UTILITY FUNCTIONS ============
+    function getHeaders() {
+        return {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+        };
+    }
+
+    async function apiCall(method, endpoint, body = null) {
+        const options = { method, headers: getHeaders() };
+        if (body) options.body = JSON.stringify(body);
+        
+        const res = await fetch(`${API_BASE}${endpoint}`, options);
+        const data = await res.json();
+        
+        if (res.status === 401 || res.status === 403) {
+            if (res.status === 401) {
+                showToast('Phiên đăng nhập đã hết hạn!', 'error');
+                logout();
+            }
+            throw new Error(data.message);
+        }
+        if (data.status === 'error') throw new Error(data.message);
+        return data;
+    }
+
+    function showToast(message, type = 'success') {
+        const container = document.getElementById('toastContainer');
+        const colors = {
+            success: 'bg-green-600',
+            error: 'bg-red-600',
+            warning: 'bg-yellow-500',
+            info: 'bg-blue-600'
+        };
+        const icons = {
+            success: '&#10003;',
+            error: '&#10007;',
+            warning: '&#9888;',
+            info: '&#8505;'
+        };
+        const toast = document.createElement('div');
+        toast.className = `toast ${colors[type]} text-white px-5 py-3 rounded-lg shadow-lg flex items-center gap-3 min-w-[300px]`;
+        toast.innerHTML = `<span class="text-lg">${icons[type]}</span><span class="text-sm">${message}</span>`;
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 5000);
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // ============ NAVIGATION ============
+    function navigateTo(page) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+        
+        const pageEl = document.getElementById(`page-${page}`);
+        if (pageEl) pageEl.classList.add('active');
+        
+        const link = document.querySelector(`[data-page="${page}"]`);
+        if (link) link.classList.add('active');
+
+        const titles = {
+            dashboard: 'Tổng quan',
+            products: 'Quản lý Sản phẩm',
+            suppliers: 'Nhà cung cấp',
+            inbound: 'Nhập kho & Điều chuyển',
+            outbound: 'Xuất kho',
+            audit: 'Kiểm kê & Cân đối',
+            analytics: 'Phân tích & Dự báo'
+        };
+        document.getElementById('pageTitle').textContent = titles[page] || page;
+
+        // Auto-load data
+        if (page === 'dashboard') loadDashboard();
+        if (page === 'suppliers') loadSuppliers();
+    }
+
+    // ============ AUTH ============
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('loginUsername').value.trim();
+        const password = document.getElementById('loginPassword').value;
+        const errorEl = document.getElementById('loginError');
+        const btn = document.getElementById('loginBtn');
+        
+        errorEl.classList.add('hidden');
+        btn.innerHTML = '<span class="loading"></span> Đang xử lý...';
+        btn.disabled = true;
+
+        try {
+            const res = await fetch(`${API_BASE}/auth/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await res.json();
+
+            if (data.status === 'success') {
+                authToken = data.data.token;
+                currentUser = data.data.user;
+                localStorage.setItem('wh_token', authToken);
+                localStorage.setItem('wh_user', JSON.stringify(currentUser));
+                showApp();
+            } else {
+                errorEl.textContent = data.message;
+                errorEl.classList.remove('hidden');
+            }
+        } catch (err) {
+            errorEl.textContent = 'Không thể kết nối đến máy chủ!';
+            errorEl.classList.remove('hidden');
+        }
+        btn.innerHTML = 'Đăng nhập';
+        btn.disabled = false;
+    });
+
+    function logout() {
+        authToken = null;
+        currentUser = null;
+        localStorage.removeItem('wh_token');
+        localStorage.removeItem('wh_user');
+        if (socket) socket.disconnect();
+        document.getElementById('mainApp').classList.add('hidden');
+        document.getElementById('loginPage').classList.remove('hidden');
+        document.getElementById('loginForm').reset();
+    }
+
+    function showApp() {
+        document.getElementById('loginPage').classList.add('hidden');
+        document.getElementById('mainApp').classList.remove('hidden');
+        
+        // Update user info
+        if (currentUser) {
+            document.getElementById('userName').textContent = currentUser.fullName || currentUser.username || 'User';
+            document.getElementById('userRole').textContent = currentUser.role || 'STAFF';
+            document.getElementById('userAvatar').textContent = (currentUser.fullName || 'U').charAt(0).toUpperCase();
+        }
+
+        // Hide role-restricted sections
+        const role = currentUser?.role;
+        const addProductSection = document.getElementById('addProductSection');
+        const adjustSection = document.getElementById('adjustSection');
+        if (addProductSection) addProductSection.style.display = (role === 'ADMIN' || role === 'MANAGER') ? '' : 'none';
+        if (adjustSection) adjustSection.style.display = (role === 'ADMIN' || role === 'MANAGER') ? '' : 'none';
+
+        initSocket();
+        navigateTo('dashboard');
+    }
+
+    // ============ SOCKET.IO ============
+    function initSocket() {
+        socket = io();
+        
+        socket.on('connect', () => {
+            document.getElementById('connectionStatus').innerHTML = `
+                <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                <span class="text-green-600 text-sm">Trực tuyến</span>`;
+        });
+
+        socket.on('disconnect', () => {
+            document.getElementById('connectionStatus').innerHTML = `
+                <span class="w-2 h-2 rounded-full bg-red-500"></span>
+                <span class="text-red-500 text-sm">Mất kết nối</span>`;
+        });
+
+        socket.on('stock_alert', (data) => {
+            showToast(data.message, 'warning');
+            addAlert(data.message, 'warning');
+        });
+
+        socket.on('inventory_updated', (data) => {
+            showToast(data.message, 'info');
+            addAlert(data.message, 'info');
+            if (document.getElementById('page-dashboard').classList.contains('active')) {
+                loadDashboard();
+            }
+        });
+
+        socket.on('inventory_adjusted', (data) => {
+            const msg = `Kiểm kê: ${data.sku} tại ${data.binCode} chênh lệch ${data.discrepancy > 0 ? '+' : ''}${data.discrepancy}`;
+            showToast(msg, 'warning');
+            addAlert(msg, 'warning');
+        });
+    }
+
+    function addAlert(message, type = 'info') {
+        const container = document.getElementById('alertsContainer');
+        const placeholder = container.querySelector('.text-gray-400');
+        if (placeholder) container.innerHTML = '';
+
+        const colors = { warning: 'border-orange-400 bg-orange-50', info: 'border-blue-400 bg-blue-50' };
+        const textColors = { warning: 'text-orange-800', info: 'text-blue-800' };
+        const time = new Date().toLocaleTimeString('vi-VN');
+
+        const alert = document.createElement('div');
+        alert.className = `border-l-4 ${colors[type] || colors.info} p-3 rounded-r-lg`;
+        alert.innerHTML = `
+            <div class="flex justify-between items-start">
+                <p class="text-sm ${textColors[type] || textColors.info}">${escapeHtml(message)}</p>
+                <span class="text-xs text-gray-400 ml-4 whitespace-nowrap">${time}</span>
+            </div>`;
+        container.prepend(alert);
+    }
+
+    // ============ DASHBOARD ============
+    async function loadDashboard() {
+        try {
+            const data = await apiCall('GET', '/analytics/summary');
+            const stats = data.data[0] || {};
+            document.getElementById('statTotalSKU').textContent = stats.TotalSKUs ?? '--';
+            document.getElementById('statLowStock').textContent = stats.LowStockItems ?? '--';
+            document.getElementById('statTotalUnits').textContent = (stats.TotalUnitsInStock ?? '--').toLocaleString?.() || stats.TotalUnitsInStock || '--';
+        } catch (err) {
+            console.log('Dashboard load:', err.message);
+        }
+    }
+
+    // ============ PRODUCTS ============
+    let lastProductResult = null;
+
+    async function searchProduct() {
+        const barcode = document.getElementById('barcodeInput').value.trim();
+        if (!barcode) return showToast('Vui lòng nhập mã vạch!', 'warning');
+
+        const resultEl = document.getElementById('productResult');
+        const notFoundEl = document.getElementById('productNotFound');
+        resultEl.classList.add('hidden');
+        notFoundEl.classList.add('hidden');
+
+        try {
+            const data = await apiCall('GET', `/products/barcode/${encodeURIComponent(barcode)}`);
+            const products = Array.isArray(data.data) ? data.data : [data.data];
+            if (products.length === 0) throw new Error('Không tìm thấy');
+            
+            const p = products[0];
+            lastProductResult = p;
+            
+            document.getElementById('productDetailTable').innerHTML = `
+                <tr><td class="py-2 pr-4 font-medium text-gray-600">ID</td><td class="py-2">${escapeHtml(String(p.id))}</td></tr>
+                <tr><td class="py-2 pr-4 font-medium text-gray-600">SKU</td><td class="py-2">${escapeHtml(p.sku)}</td></tr>
+                <tr><td class="py-2 pr-4 font-medium text-gray-600">Barcode</td><td class="py-2">${escapeHtml(p.barcode)}</td></tr>
+                <tr><td class="py-2 pr-4 font-medium text-gray-600">Tên SP</td><td class="py-2">${escapeHtml(p.name)}</td></tr>
+                <tr><td class="py-2 pr-4 font-medium text-gray-600">ROP</td><td class="py-2">${p.rop}</td></tr>
+                <tr><td class="py-2 pr-4 font-medium text-gray-600">Safety Stock</td><td class="py-2">${p.safety_stock}</td></tr>
+                <tr><td class="py-2 pr-4 font-medium text-gray-600">Đơn vị</td><td class="py-2">${escapeHtml(p.unit || 'N/A')}</td></tr>`;
+            
+            const role = currentUser?.role;
+            let actions = '';
+            if (role === 'ADMIN' || role === 'MANAGER') {
+                actions += `<button onclick="openEditProduct()" class="bg-yellow-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-yellow-600 transition">Sửa</button>`;
+            }
+            if (role === 'ADMIN') {
+                actions += `<button onclick="deleteProduct(${p.id})" class="bg-red-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-600 transition">Xóa</button>`;
+            }
+            document.getElementById('productActions').innerHTML = actions;
+            resultEl.classList.remove('hidden');
+        } catch (err) {
+            notFoundEl.textContent = err.message;
+            notFoundEl.classList.remove('hidden');
+        }
+    }
+
+    document.getElementById('addProductForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        try {
+            await apiCall('POST', '/products', {
+                sku: fd.get('sku'), barcode: fd.get('barcode'), name: fd.get('name'),
+                categoryId: parseInt(fd.get('categoryId')), supplierId: parseInt(fd.get('supplierId')),
+                rop: parseFloat(fd.get('rop')), safetyStock: parseFloat(fd.get('safetyStock')), unit: fd.get('unit')
+            });
+            showToast('Thêm sản phẩm thành công!');
+            e.target.reset();
+        } catch (err) { showToast(err.message, 'error'); }
+    });
+
+    function openEditProduct() {
+        if (!lastProductResult) return;
+        const p = lastProductResult;
+        const newName = prompt('Tên sản phẩm:', p.name);
+        if (newName === null) return;
+        const newRop = prompt('ROP:', p.rop);
+        if (newRop === null) return;
+        const newSafety = prompt('Safety Stock:', p.safety_stock);
+        if (newSafety === null) return;
+
+        apiCall('PUT', `/products/${p.id}`, { name: newName, rop: parseFloat(newRop), safetyStock: parseFloat(newSafety) })
+            .then(() => { showToast('Cập nhật thành công!'); searchProduct(); })
+            .catch(err => showToast(err.message, 'error'));
+    }
+
+    async function deleteProduct(id) {
+        if (!confirm('Bạn chắc chắn muốn xóa sản phẩm này?')) return;
+        try {
+            await apiCall('DELETE', `/products/${id}`);
+            showToast('Đã xóa sản phẩm!');
+            document.getElementById('productResult').classList.add('hidden');
+        } catch (err) { showToast(err.message, 'error'); }
+    }
+
+    // ============ SUPPLIERS ============
+    async function loadSuppliers() {
+        try {
+            const data = await apiCall('GET', '/suppliers');
+            const suppliers = Array.isArray(data.data) ? data.data : [];
+            const tbody = document.getElementById('supplierTable');
+            
+            if (suppliers.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="px-4 py-8 text-center text-gray-400">Chưa có nhà cung cấp nào</td></tr>';
+                return;
+            }
+            tbody.innerHTML = suppliers.map(s => `
+                <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-3">${s.id}</td>
+                    <td class="px-4 py-3 font-medium">${escapeHtml(s.name)}</td>
+                    <td class="px-4 py-3">${s.lead_time ?? s.leadTime ?? '--'}</td>
+                    <td class="px-4 py-3 text-gray-500">${escapeHtml(s.contact_info ?? s.contactInfo ?? '--')}</td>
+                </tr>`).join('');
+        } catch (err) {
+            document.getElementById('supplierTable').innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-red-400">${escapeHtml(err.message)}</td></tr>`;
+        }
+    }
+
+    document.getElementById('addSupplierForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        try {
+            await apiCall('POST', '/suppliers', {
+                name: fd.get('name'), leadTime: parseInt(fd.get('leadTime')), contactInfo: fd.get('contactInfo')
+            });
+            showToast('Thêm NCC thành công!');
+            e.target.reset();
+            loadSuppliers();
+        } catch (err) { showToast(err.message, 'error'); }
+    });
+
+    // ============ INBOUND ============
+    document.getElementById('inboundForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        try {
+            const result = await apiCall('POST', '/inventory/inbound', {
+                barcode: fd.get('barcode'), binCode: fd.get('binCode'),
+                quantity: parseInt(fd.get('quantity')), batchNo: fd.get('batchNo'),
+                expiryDate: fd.get('expiryDate') || null
+            });
+            showToast(result.message || 'Nhập kho thành công!');
+            e.target.reset();
+        } catch (err) { showToast(err.message, 'error'); }
+    });
+
+    document.getElementById('transferForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        try {
+            const result = await apiCall('POST', '/inventory/transfer', {
+                sku: fd.get('sku'), sourceBin: fd.get('sourceBin'),
+                destBin: fd.get('destBin'), quantity: parseInt(fd.get('quantity'))
+            });
+            showToast(result.message || 'Điều chuyển thành công!');
+            e.target.reset();
+        } catch (err) { showToast(err.message, 'error'); }
+    });
+
+    // ============ OUTBOUND ============
+    async function getPickingSuggestion() {
+        const sku = document.getElementById('outboundSkuInput').value.trim();
+        if (!sku) return showToast('Vui lòng nhập mã SKU!', 'warning');
+
+        try {
+            const data = await apiCall('GET', `/outbound/suggest/${encodeURIComponent(sku)}`);
+            const batches = Array.isArray(data.data) ? data.data : [];
+            const tbody = document.getElementById('pickingTable');
+
+            tbody.innerHTML = batches.map(b => `
+                <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-3">${escapeHtml(b.sku)}</td>
+                    <td class="px-4 py-3">${escapeHtml(b.name)}</td>
+                    <td class="px-4 py-3 font-mono font-medium">${escapeHtml(b.bin_code)}</td>
+                    <td class="px-4 py-3">${b.quantity}</td>
+                    <td class="px-4 py-3">${escapeHtml(b.batch_no)}</td>
+                    <td class="px-4 py-3">${b.expiry_date ? new Date(b.expiry_date).toLocaleDateString('vi-VN') : '--'}</td>
+                </tr>`).join('');
+            
+            document.getElementById('pickingResult').classList.remove('hidden');
+        } catch (err) { showToast(err.message, 'error'); }
+    }
+
+    document.getElementById('outboundForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        try {
+            const result = await apiCall('POST', '/outbound/confirm', {
+                sku: fd.get('sku'), binCode: fd.get('binCode'), quantity: parseInt(fd.get('quantity'))
+            });
+            showToast(result.message || 'Xuất kho thành công!');
+            e.target.reset();
+        } catch (err) { showToast(err.message, 'error'); }
+    });
+
+    // ============ AUDIT ============
+    async function getBinInventory() {
+        const binCode = document.getElementById('auditBinInput').value.trim();
+        if (!binCode) return showToast('Vui lòng nhập mã ô kệ!', 'warning');
+
+        try {
+            const data = await apiCall('GET', `/audit/bin/${encodeURIComponent(binCode)}`);
+            const items = Array.isArray(data.data) ? data.data : [];
+            const tbody = document.getElementById('auditTable');
+
+            tbody.innerHTML = items.map(item => `
+                <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-3 font-mono">${escapeHtml(item.sku)}</td>
+                    <td class="px-4 py-3">${escapeHtml(item.name)}</td>
+                    <td class="px-4 py-3 font-bold">${item.expectedQty}</td>
+                </tr>`).join('');
+            
+            document.getElementById('auditResult').classList.remove('hidden');
+        } catch (err) { showToast(err.message, 'error'); }
+    }
+
+    document.getElementById('adjustForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        try {
+            const result = await apiCall('POST', '/audit/adjust', {
+                binCode: fd.get('binCode'), sku: fd.get('sku'),
+                expectedQty: parseInt(fd.get('expectedQty')), actualQty: parseInt(fd.get('actualQty')),
+                reason: fd.get('reason')
+            });
+            showToast(result.message || 'Điều chỉnh thành công!');
+            e.target.reset();
+        } catch (err) { showToast(err.message, 'error'); }
+    });
+
+    // ============ ANALYTICS ============
+    async function runForecast() {
+        const sku = document.getElementById('forecastSkuInput').value.trim();
+        const alpha = document.getElementById('forecastAlpha').value;
+        if (!sku) return showToast('Vui lòng nhập mã SKU!', 'warning');
+
+        try {
+            const data = await apiCall('GET', `/analytics/forecast/${encodeURIComponent(sku)}?alpha=${alpha}`);
+            const result = data.data;
+
+            document.getElementById('forecastDemand').textContent = result.forecastedDemandNextMonth ?? '--';
+            document.getElementById('forecastROP').textContent = result.suggestedROP ?? '--';
+
+            // Render simple bar chart for historical data
+            const history = result.historicalDemands || [];
+            const container = document.getElementById('forecastHistory');
+            if (history.length > 0) {
+                const max = Math.max(...history);
+                container.innerHTML = history.map((val, i) => {
+                    const height = max > 0 ? (val / max * 100) : 0;
+                    return `
+                        <div class="flex-1 flex flex-col items-center justify-end h-full">
+                            <span class="text-xs text-gray-500 mb-1">${val}</span>
+                            <div class="w-full bg-purple-400 rounded-t-md" style="height: ${height}%"></div>
+                            <span class="text-xs text-gray-400 mt-1">T${i + 1}</span>
+                        </div>`;
+                }).join('');
+            } else {
+                container.innerHTML = '<p class="text-sm text-gray-400 w-full text-center">Chưa có dữ liệu lịch sử</p>';
+            }
+
+            document.getElementById('forecastResult').classList.remove('hidden');
+        } catch (err) { showToast(err.message, 'error'); }
+    }
+
+    // ============ INIT ============
+    if (authToken && currentUser) {
+        showApp();
+    } else {
+        document.getElementById('loginPage').classList.remove('hidden');
+    }
+    </script>
+</body>
+</html>
