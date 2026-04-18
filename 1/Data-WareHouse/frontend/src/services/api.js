@@ -85,6 +85,23 @@ class ApiService {
     return this.processOutbound(data);
   }
 
+  createOutboundRequest(data) {
+    return this._request('POST', '/outbound/request', data);
+  }
+  getMyOutboundRequests() {
+    return this._request('GET', '/outbound/my-requests');
+  }
+  getOutboundRequestsForApproval(status = 'PENDING') {
+    const q = `?status=${encodeURIComponent(status)}`;
+    return this._request('GET', `/outbound/requests${q}`);
+  }
+  approveOutboundRequest(id) {
+    return this._request('POST', `/outbound/requests/${encodeURIComponent(id)}/approve`, {});
+  }
+  rejectOutboundRequest(id, note) {
+    return this._request('POST', `/outbound/requests/${encodeURIComponent(id)}/reject`, { note });
+  }
+
   // Audit
   getBinInventory(binCode) {
     return this._request('GET', `/audit/bin/${encodeURIComponent(binCode)}`);
@@ -107,6 +124,20 @@ class ApiService {
   getLowStockList(limit = 20) {
     const q = limit ? `?limit=${encodeURIComponent(String(limit))}` : '';
     return this._request('GET', `/analytics/low-stock${q}`);
+  }
+
+  // Orders
+  getOrders() {
+    return this._request('GET', '/orders');
+  }
+  getOrderDetails(id) {
+    return this._request('GET', `/orders/${encodeURIComponent(id)}`);
+  }
+  createOrder(data) {
+    return this._request('POST', '/orders', data);
+  }
+  allocateOrder(id) {
+    return this._request('POST', `/orders/${encodeURIComponent(id)}/allocate`, {});
   }
 }
 

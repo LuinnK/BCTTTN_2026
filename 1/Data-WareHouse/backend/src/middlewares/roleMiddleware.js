@@ -1,27 +1,27 @@
-// src/middlewares/roleMiddleware.js
-
-const authorizeRoles = (...allowedRoles) => {
+/** Phân quyền theo role (JWT: role) — so khớp không phân biệt hoa thường */
+function requireRoles(...allowed) {
+    const upper = allowed.map((r) => String(r).toUpperCase());
     return (req, res, next) => {
-        // 1. Kiểm tra xem thông tin user đã tồn tại chưa (do authMiddleware gán vào)
-        if (!req.user ||!req.user.role) {
-            return res.status(401).json({ 
-                status: 'error', 
-                message: 'Không tìm thấy thông tin quyền hạn người dùng!' 
-            });
-        }
-
-        // 2. Đối chiếu vai trò của user với danh sách vai trò được phép
-        //allowedRoles sẽ là mảng như
-        if (!allowedRoles.includes(req.user.role)) {
+        const role = (req.user?.role || '').toUpperCase();
+        if (!req.user || !upper.includes(role)) {
             return res.status(403).json({
                 status: 'error',
-                message: `Quyền truy cập bị từ chối! Chức năng này yêu cầu quyền:`
+                message: 'Không có quyền thực hiện thao tác này.',
             });
         }
-
-        // 3. Nếu hợp lệ, cho phép đi tiếp vào Controller
         next();
     };
-};
+}
 
-module.exports = authorizeRoles;
+function isPrivilegedRole(role) {
+    const r = (role || '').toUpperCase();
+    return r === 'ADMIN' || r === 'MANAGER';
+}
+
+/** Alias tên cũ — một số route dùng `const authorizeRoles = require(...)` */
+const authorizeRoles = requireRoles;
+
+module.exports = requireRoles;
+module.exports.requireRoles = requireRoles;
+module.exports.authorizeRoles = authorizeRoles;
+module.exports.isPrivilegedRole = isPrivilegedRole;

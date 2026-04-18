@@ -11,6 +11,7 @@ import Inbound from '@/pages/Inbound';
 import Outbound from '@/pages/Outbound';
 import Audit from '@/pages/Audit';
 import Analytics from '@/pages/Analytics';
+import Orders from '@/pages/Orders';
 
 function ProtectedRoute({ children }) {
   const { token } = useAuth();
@@ -39,6 +40,7 @@ function AppRoutes() {
         <Route path="suppliers" element={<Suppliers />} />
         <Route path="inbound" element={<Inbound />} />
         <Route path="outbound" element={<Outbound />} />
+        <Route path="orders" element={<Orders />} />
         <Route path="audit" element={<Audit />} />
         <Route path="analytics" element={<Analytics />} />
       </Route>

@@ -11,6 +11,7 @@ const inventoryRoutes = require('./routes/inventoryRoutes');
 const outboundRoutes = require('./routes/outboundRoutes');
 const auditRoutes = require('./routes/auditRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
+const orderRoutes = require('./routes/orderRoutes');
 
 // Import Middleware bẫy lỗi
 const errorHandler = require('./middlewares/errorMiddleware');
@@ -33,6 +34,7 @@ app.use('/api/v1/inventory', inventoryRoutes);
 app.use('/api/v1/outbound', outboundRoutes);
 app.use('/api/v1/audit', auditRoutes);
 app.use('/api/v1/analytics', analyticsRoutes);
+app.use('/api/v1/orders', orderRoutes);
 
 // Route kiểm tra sức khỏe hệ thống
 app.get('/api/v1/health', (req, res) => {

@@ -4,4 +4,4 @@ PS C:\Users\Admin\Downloads\Data-WareHouse-main> Get-Process -Name node -ErrorAc
 Username	Password	Quyền
 admin	hashed_pw_123	ADMIN (toàn quyền)
 manager1	hashed_pw_123	MANAGER
-staff1	hashed_pw_123	STAFF
+staff	hashed_pw_123	STAFF

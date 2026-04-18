@@ -92,7 +92,7 @@ class InventoryDAO {
             await request.query(`
                 DECLARE @PID INT = (SELECT id FROM Products WHERE sku = @SKU);
                 IF EXISTS (SELECT 1 FROM Inventories WHERE product_id = @PID AND bin_code = @DestBin)
-                    UPDATE Inventories SET quantity = quantity + @Quantity WHERE product_id = @PID AND bin_code = @DestBin
+                    UPDATE Inventories SET quantity = quantity + @Qty WHERE product_id = @PID AND bin_code = @DestBin
                 ELSE
                     INSERT INTO Inventories (product_id, bin_code, quantity) VALUES (@PID, @DestBin, @Qty)
             `);
